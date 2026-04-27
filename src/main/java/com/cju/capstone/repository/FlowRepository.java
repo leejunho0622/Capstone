@@ -1,0 +1,30 @@
+package com.cju.capstone.repository;
+
+import com.cju.capstone.domain.Flow;
+import com.cju.capstone.dto.TimelineDto;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface FlowRepository extends JpaRepository<Flow, Long> {
+
+    Optional<Flow> findByFlowId(Long flowId);
+
+    @Query(value = """
+        SELECT COUNT(*) FROM flows
+        WHERE DATE(start_time) = CURDATE()
+    """, nativeQuery = true)
+    long countTodayAttacks();
+
+    @Query("""
+    SELECT new com.cju.capstone.dto.TimelineDto(
+        FUNCTION('HOUR', f.startTime),
+        COUNT(f)
+    )
+    FROM Flow f
+    GROUP BY FUNCTION('HOUR', f.startTime)
+    """)
+    List<TimelineDto> groupByHour();
+}
