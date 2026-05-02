@@ -1,6 +1,7 @@
 package com.cju.capstone.dto;
 
 import com.cju.capstone.domain.Flow;
+import com.cju.capstone.domain.FlowFlags;
 
 import java.time.LocalDateTime;
 
@@ -12,9 +13,17 @@ public record FlowDto(
         int destPort,
         String protocol,
         LocalDateTime startTime,
-        LocalDateTime endTime
+        LocalDateTime endTime,
+
+        // 🔥 flags 추가
+        int synCount,
+        int ackCount,
+        int finCount,
+        int rstCount,
+        int pshCount,
+        int urgCount
 ) {
-    public static FlowDto from(Flow f) {
+    public static FlowDto from(Flow f, FlowFlags flags) {
         return new FlowDto(
                 f.getFlowId(),
                 f.getSrcIp(),
@@ -23,7 +32,14 @@ public record FlowDto(
                 f.getDestPort(),
                 f.getProtocol(),
                 f.getStartTime(),
-                f.getEndTime()
+                f.getEndTime(),
+
+                flags != null ? flags.getSynCount() : 0,
+                flags != null ? flags.getAckCount() : 0,
+                flags != null ? flags.getFinCount() : 0,
+                flags != null ? flags.getRstCount() : 0,
+                flags != null ? flags.getPshCount() : 0,
+                flags != null ? flags.getUrgCount() : 0
         );
     }
 }

@@ -34,4 +34,7 @@ public class Flow {
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+
+    @OneToOne(mappedBy = "flow", fetch = FetchType.LAZY)
+    private FlowFlags flowFlags;
 }

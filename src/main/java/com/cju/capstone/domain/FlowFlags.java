@@ -4,13 +4,22 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 @Entity
-@Table(name = "flow_flags")
 @Getter
+@Table(name = "flow_flags")
 public class FlowFlags {
 
     @Id
     private Long flowId;
 
-    private Integer synCount;
-    private Integer ackCount;
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "flow_id")
+    private Flow flow;
+
+    private int synCount;
+    private int ackCount;
+    private int finCount;
+    private int rstCount;
+    private int pshCount;
+    private int urgCount;
 }

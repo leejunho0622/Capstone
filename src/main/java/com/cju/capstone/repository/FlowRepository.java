@@ -12,6 +12,21 @@ public interface FlowRepository extends JpaRepository<Flow, Long> {
 
     Optional<Flow> findByFlowId(Long flowId);
 
+    // 🔥 fetch join (전체 조회용)
+    @Query("""
+    SELECT f FROM Flow f
+    LEFT JOIN FETCH f.flowFlags
+    """)
+    List<Flow> findAllWithFlags();
+
+    // 🔥 fetch join (단건 조회용)
+    @Query("""
+    SELECT f FROM Flow f
+    LEFT JOIN FETCH f.flowFlags
+    WHERE f.flowId = :flowId
+    """)
+    Optional<Flow> findWithFlags(Long flowId);
+
     @Query(value = """
         SELECT COUNT(*) FROM flows
         WHERE DATE(start_time) = CURDATE()
