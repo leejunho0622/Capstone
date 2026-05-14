@@ -77,4 +77,6 @@ public interface AiResultRepository extends JpaRepository<AiResult, Long> {
         ORDER BY t.hour
 """, nativeQuery = true)
     List<Object[]> getTimeline();
+
+    List<AiResult> findAllByFlow_FlowIdIn(List<Long> flowIds);
 }

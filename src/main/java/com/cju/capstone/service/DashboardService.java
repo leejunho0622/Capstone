@@ -33,16 +33,4 @@ public class DashboardService {
                 avgRisk
         );
     }
-
-    public List<AttackTypeDto> getAttackTypes() {
-        return aiResultRepository.groupByAttackType();
-    }
-
-    public List<TimelineDto> getTimeline() {
-        return flowRepository.groupByHour();
-    }
-
-    public List<AlertDto> getAlerts() {
-        return aiResultRepository.findHighRiskAlerts();
-    }
 }

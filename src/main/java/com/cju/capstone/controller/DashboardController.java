@@ -1,11 +1,10 @@
 package com.cju.capstone.controller;
 
-import com.cju.capstone.dto.AttackTypeDto;
-import com.cju.capstone.dto.DashboardSummaryDto;
-import com.cju.capstone.dto.TimelineDto;
+import com.cju.capstone.dto.*;
 import com.cju.capstone.service.DashboardService;
 import com.cju.capstone.service.FlowService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -34,8 +33,10 @@ public class DashboardController {
     }
 
     @GetMapping("/alerts")
-    public List<String> alerts() {
-        return List.of("High risk detected", "Suspicious IP");
+    public Page<AttackFlowDto> alerts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
+        return flowService.getAttackFlows(page, size);
     }
 
     @GetMapping("/realtime")

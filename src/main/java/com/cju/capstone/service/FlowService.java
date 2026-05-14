@@ -10,6 +10,7 @@ import com.cju.capstone.repository.FlowRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -99,6 +100,58 @@ public class FlowService {
                         ((Number) row[1]).longValue()   // count
                 ))
                 .toList();
+    }
+
+    public Page<AttackFlowDto> getAttackFlows(int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Flow> flowPage = flowRepository.findAttackFlows(pageable);
+
+        if (flowPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // flowId 목록
+        List<Long> flowIds = flowPage.getContent().stream()
+                .map(Flow::getFlowId)
+                .toList();
+
+        // flags 조회
+        List<FlowFlags> flagsList =
+                flowFlagsRepository.findAllByFlowIdIn(flowIds);
+
+        // ai 조회
+        List<AiResult> aiResults =
+                aiResultRepository.findAllByFlow_FlowIdIn(flowIds);
+
+        // flags map
+        Map<Long, FlowFlags> flagsMap = flagsList.stream()
+                .collect(Collectors.toMap(
+                        FlowFlags::getFlowId,
+                        f -> f
+                ));
+
+        // ai map
+        Map<Long, AiResult> aiMap = aiResults.stream()
+                .collect(Collectors.toMap(
+                        ai -> ai.getFlow().getFlowId(),
+                        a -> a
+                ));
+
+        return flowPage.map(flow -> {
+
+            FlowFlags flags =
+                    flagsMap.get(flow.getFlowId());
+
+            AiResult ai =
+                    aiMap.get(flow.getFlowId());
+
+            return AttackFlowDto.of(
+                    FlowDto.from(flow, flags),
+                    ai != null ? AiResultDto.from(ai) : null
+            );
+        });
     }
 
     public List<Flow> getAllFlows() {
