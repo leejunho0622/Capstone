@@ -1,6 +1,6 @@
 package com.cju.capstone.dto;
 
-public record TimelineDto(
-        String day,
+public record RealtimeDto(
+        int hour,
         long count
 ) {}

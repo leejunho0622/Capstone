@@ -13,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -80,78 +81,6 @@ public class FlowService {
                 .stream()
                 .map(AiResultDto::from)
                 .toList();
-    }
-
-    public List<AttackTypeDto> getAttackTypes() {
-        return aiResultRepository.countAttackTypes()
-                .stream()
-                .map(row -> new AttackTypeDto(
-                        (String) row[0],
-                        (Long) row[1]
-                ))
-                .toList();
-    }
-
-    public List<TimelineDto> getTimeline() {
-        return aiResultRepository.getTimeline()
-                .stream()
-                .map(row -> new TimelineDto(
-                        ((Number) row[0]).intValue(),   // hour
-                        ((Number) row[1]).longValue()   // count
-                ))
-                .toList();
-    }
-
-    public Page<AttackFlowDto> getAttackFlows(int page, int size) {
-
-        Pageable pageable = PageRequest.of(page, size);
-
-        Page<Flow> flowPage = flowRepository.findAttackFlows(pageable);
-
-        if (flowPage.isEmpty()) {
-            return Page.empty(pageable);
-        }
-
-        // flowId 목록
-        List<Long> flowIds = flowPage.getContent().stream()
-                .map(Flow::getFlowId)
-                .toList();
-
-        // flags 조회
-        List<FlowFlags> flagsList =
-                flowFlagsRepository.findAllByFlowIdIn(flowIds);
-
-        // ai 조회
-        List<AiResult> aiResults =
-                aiResultRepository.findAllByFlow_FlowIdIn(flowIds);
-
-        // flags map
-        Map<Long, FlowFlags> flagsMap = flagsList.stream()
-                .collect(Collectors.toMap(
-                        FlowFlags::getFlowId,
-                        f -> f
-                ));
-
-        // ai map
-        Map<Long, AiResult> aiMap = aiResults.stream()
-                .collect(Collectors.toMap(
-                        ai -> ai.getFlow().getFlowId(),
-                        a -> a
-                ));
-
-        return flowPage.map(flow -> {
-
-            FlowFlags flags =
-                    flagsMap.get(flow.getFlowId());
-
-            AiResult ai =
-                    aiMap.get(flow.getFlowId());
-
-            return AttackFlowDto.of(
-                    FlowDto.from(flow, flags),
-                    ai != null ? AiResultDto.from(ai) : null
-            );
-        });
     }
 
     public List<Flow> getAllFlows() {

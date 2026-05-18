@@ -23,24 +23,27 @@ public class DashboardController {
     }
 
     @GetMapping("/attack-types")
-    public List<AttackTypeDto> attackTypes() {
-        return flowService.getAttackTypes();
+    public List<AttackTypeDto> getAttackTypes(
+            @RequestParam(defaultValue = "all") String period
+    ) {
+        return dashboardService.getAttackTypes(period);
     }
 
     @GetMapping("/timeline")
     public List<TimelineDto> timeline() {
-        return flowService.getTimeline();
+        return dashboardService.getTimeline();
     }
 
     @GetMapping("/alerts")
     public Page<AttackFlowDto> alerts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size) {
-        return flowService.getAttackFlows(page, size);
+
+        return dashboardService.getAttackFlows(page, size);
     }
 
     @GetMapping("/realtime")
-    public String realtime() {
-        return "NORMAL";
+    public List<RealtimeDto> realtime() {
+        return dashboardService.getRealtime();
     }
 }
