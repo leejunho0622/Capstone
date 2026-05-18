@@ -1,5 +1,6 @@
 package com.cju.capstone.service;
 
+import com.cju.capstone.config.AttackType;
 import com.cju.capstone.domain.AiResult;
 import com.cju.capstone.domain.Flow;
 import com.cju.capstone.domain.FlowFlags;
@@ -14,6 +15,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,10 +55,22 @@ public class DashboardService {
             result = aiResultRepository.countAttackTypesAll();
         }
 
-        return result.stream()
-                .map(row -> new AttackTypeDto(
-                        (String) row[0],
-                        ((Number) row[1]).longValue()
+        Map<String, Long> counts = new HashMap<>();
+
+        for (Object[] row : result) {
+            counts.put(
+                    (String) row[0],
+                    ((Number) row[1]).longValue()
+            );
+        }
+
+        return Arrays.stream(AttackType.values())
+                .map(type -> new AttackTypeDto(
+                        type.name(),
+                        counts.getOrDefault(
+                                type.name(),
+                                0L
+                        )
                 ))
                 .toList();
     }
