@@ -66,23 +66,25 @@ public interface AiResultRepository extends JpaRepository<AiResult, Long> {
     List<Object[]> countAttackTypesAll();
 
     @Query(value = """
-    SELECT
-        t.day_date,
-        COUNT(a.id) AS count
+    SELECT day, COUNT(*)
     FROM (
-        SELECT CURDATE() - INTERVAL 6 DAY AS day_date UNION ALL
-        SELECT CURDATE() - INTERVAL 5 DAY UNION ALL
-        SELECT CURDATE() - INTERVAL 4 DAY UNION ALL
-        SELECT CURDATE() - INTERVAL 3 DAY UNION ALL
-        SELECT CURDATE() - INTERVAL 2 DAY UNION ALL
-        SELECT CURDATE() - INTERVAL 1 DAY UNION ALL
-        SELECT CURDATE()
-    ) t
-    LEFT JOIN ai_results a
-        ON DATE(a.analyzed_at) = t.day_date
-    GROUP BY t.day_date
-    ORDER BY t.day_date
-""", nativeQuery = true)
+        SELECT DATE(f.start_time) day,
+               f.src_ip,
+               a.attack_type,
+               FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+        FROM flows f
+        JOIN ai_results a
+        ON f.flow_id = a.flow_id
+        WHERE f.start_time >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        GROUP BY DATE(f.start_time),
+                 f.src_ip,
+                 a.attack_type,
+                 FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+    )t
+    GROUP BY day
+    ORDER BY day
+    """, nativeQuery = true)
+
     List<Object[]> getTimeline();
 
     @Query(value = """

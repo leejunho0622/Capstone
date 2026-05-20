@@ -14,11 +14,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,7 +29,7 @@ public class DashboardService {
 
     public DashboardSummaryDto getSummary() {
         long totalFlows = flowRepository.count();
-        long todayAttacks = flowRepository.countTodayAttacks();
+        long todayAttacks = flowRepository.countTodayIncidents();
 
         double avgRisk = aiResultRepository.avgRiskScore();
 
@@ -76,15 +74,24 @@ public class DashboardService {
     }
 
     public List<TimelineDto> getTimeline() {
-        return aiResultRepository.getTimeline()
-                .stream()
-                .map(row -> new TimelineDto(
-                        ((java.sql.Date) row[0])
-                                .toLocalDate()
-                                .format(DateTimeFormatter.ofPattern("MM/dd")),
-                        ((Number) row[1]).longValue()
-                ))
-                .toList();
+        Map<String, Long> data = aiResultRepository.getTimeline().stream().collect(Collectors.toMap(
+                row -> ((java.sql.Date) row[0]).toLocalDate().format(DateTimeFormatter.ofPattern("MM/dd")),
+                row -> ((Number) row[1]).longValue()
+        ));
+
+        List<TimelineDto> result = new ArrayList<>();
+
+        for (int i = 6; i >= 0; i--) {
+            LocalDate date = LocalDate.now().minusDays(i);
+            String day = date.format(DateTimeFormatter.ofPattern("MM/dd"));
+
+            result.add(new TimelineDto(
+                    day,
+                    data.getOrDefault(day, 0L)
+            ));
+        }
+
+        return result;
     }
 
     public List<RealtimeDto> getRealtime() {

@@ -66,12 +66,26 @@ public class FlowService {
     public FlowDetailDto getFlowDetail(Long flowId) {
 
         Flow flow = flowRepository.findByFlowId(flowId)
-                .orElseThrow(() -> new IllegalArgumentException("Flow not found: " + flowId));
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Flow not found: " + flowId
+                        ));
 
-        AiResult ai = aiResultRepository.findTopByFlow_FlowId(flowId)
-                .orElse(null);
+        FlowFlags flags =
+                flowFlagsRepository
+                        .findById(flowId)
+                        .orElse(null);
 
-        return FlowDetailDto.of(flow, ai);
+        AiResult ai =
+                aiResultRepository
+                        .findTopByFlow_FlowId(flowId)
+                        .orElse(null);
+
+        return FlowDetailDto.of(
+                flow,
+                flags,
+                ai
+        );
     }
 
     // 3. AI 결과 전체 조회
@@ -81,6 +95,33 @@ public class FlowService {
                 .stream()
                 .map(AiResultDto::from)
                 .toList();
+    }
+
+    public List<AttackSummaryDto>
+    getAttackSummary(){
+
+        return flowRepository
+                .getAttackSummary()
+                .stream()
+
+                .map(r ->
+                        new AttackSummaryDto(
+                                (String) r[0],
+                                (String) r[1],
+                                (Long) r[2]
+                        )
+                )
+
+                .toList();
+    }
+
+    public Long getTodayIncidentCount() {
+        Long count = flowRepository.countTodayIncidents();
+        return count != null ? count : 0L;
+    }
+
+    public List<Object[]> getIncidentTimeline() {
+        return flowRepository.getIncidentTimeline();
     }
 
     public List<Flow> getAllFlows() {

@@ -9,8 +9,8 @@ public record FlowDto(
         Long flowId,
         String srcIp,
         String destIp,
-        int srcPort,
-        int destPort,
+        Integer srcPort,
+        Integer destPort,
         String protocol,
         LocalDateTime startTime,
         LocalDateTime endTime,
@@ -28,18 +28,42 @@ public record FlowDto(
                 f.getFlowId(),
                 f.getSrcIp(),
                 f.getDestIp(),
-                f.getSrcPort(),
-                f.getDestPort(),
+
+                f.getSrcPort() != null
+                        ? f.getSrcPort()
+                        : 0,
+
+                f.getDestPort() != null
+                        ? f.getDestPort()
+                        : 0,
+
                 f.getProtocol(),
                 f.getStartTime(),
                 f.getEndTime(),
 
-                flags != null ? flags.getSynCount() : 0,
-                flags != null ? flags.getAckCount() : 0,
-                flags != null ? flags.getFinCount() : 0,
-                flags != null ? flags.getRstCount() : 0,
-                flags != null ? flags.getPshCount() : 0,
-                flags != null ? flags.getUrgCount() : 0
+                flags != null
+                        ? flags.getSynCount()
+                        : 0,
+
+                flags != null
+                        ? flags.getAckCount()
+                        : 0,
+
+                flags != null
+                        ? flags.getFinCount()
+                        : 0,
+
+                flags != null
+                        ? flags.getRstCount()
+                        : 0,
+
+                flags != null
+                        ? flags.getPshCount()
+                        : 0,
+
+                flags != null
+                        ? flags.getUrgCount()
+                        : 0
         );
     }
 }
