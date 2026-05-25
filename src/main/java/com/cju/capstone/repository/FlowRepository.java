@@ -18,11 +18,12 @@ public interface FlowRepository extends JpaRepository<Flow, Long> {
     @Query("""
     SELECT f
     FROM Flow f
-    WHERE DATE(f.startTime) = CURRENT_DATE
-    AND EXISTS (
+    WHERE DATE(f.startTime)=CURRENT_DATE
+    AND EXISTS(
         SELECT 1
         FROM AiResult a
-        WHERE a.flow.flowId = f.flowId
+        WHERE a.flow.flowId=f.flowId
+        AND LOWER(a.prediction)='attack'
     )
     ORDER BY f.startTime DESC
     """)
