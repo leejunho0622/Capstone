@@ -52,39 +52,68 @@ public interface AiResultRepository extends JpaRepository<AiResult, Long> {
 
     @Query(value = """
     SELECT attack_type, COUNT(*)
-    FROM ai_results
-    WHERE analyzed_at >= NOW() - INTERVAL 7 DAY
+    FROM (
+        SELECT
+            a.attack_type,
+            DATE(f.start_time),
+            f.src_ip,
+            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+        FROM flows f
+        JOIN ai_results a
+            ON f.flow_id = a.flow_id
+        WHERE f.start_time >= CURDATE()
+          AND f.start_time < CURDATE() + INTERVAL 1 DAY
+        GROUP BY
+            a.attack_type,
+            DATE(f.start_time),
+            f.src_ip,
+            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+    ) t
     GROUP BY attack_type
 """, nativeQuery = true)
-    List<Object[]> countAttackTypesWeek();
+    List<Object[]> countAttackTypesToday();
 
     @Query(value = """
     SELECT attack_type, COUNT(*)
-    FROM ai_results
+    FROM (
+        SELECT
+            a.attack_type,
+            DATE(f.start_time),
+            f.src_ip,
+            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+        FROM flows f
+        JOIN ai_results a
+            ON f.flow_id = a.flow_id
+        GROUP BY
+            a.attack_type,
+            DATE(f.start_time),
+            f.src_ip,
+            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+    ) t
     GROUP BY attack_type
 """, nativeQuery = true)
     List<Object[]> countAttackTypesAll();
 
     @Query(value = """
-    SELECT day, COUNT(*)
-    FROM (
-        SELECT DATE(f.start_time) day,
-               f.src_ip,
-               a.attack_type,
-               FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-        FROM flows f
-        JOIN ai_results a
-        ON f.flow_id = a.flow_id
-        WHERE f.start_time >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-        GROUP BY DATE(f.start_time),
-                 f.src_ip,
-                 a.attack_type,
-                 FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-    )t
-    GROUP BY day
-    ORDER BY day
-    """, nativeQuery = true)
-
+SELECT day, COUNT(*)
+FROM (
+    SELECT DATE(f.start_time) day,
+           f.src_ip,
+           a.attack_type,
+           FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+    FROM flows f
+    JOIN ai_results a
+      ON f.flow_id = a.flow_id
+    WHERE f.start_time >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+      AND a.attack_type <> 'Normal'
+    GROUP BY DATE(f.start_time),
+             f.src_ip,
+             a.attack_type,
+             FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
+)t
+GROUP BY day
+ORDER BY day
+""", nativeQuery = true)
     List<Object[]> getTimeline();
 
     @Query(value = """
@@ -118,8 +147,9 @@ public interface AiResultRepository extends JpaRepository<AiResult, Long> {
         SELECT 23
     ) t
     LEFT JOIN ai_results a
-        ON HOUR(a.analyzed_at) = t.hour
-        AND a.analyzed_at >= NOW() - INTERVAL 24 HOUR
+         ON HOUR(a.analyzed_at) = t.hour
+         AND a.analyzed_at >= NOW() - INTERVAL 24 HOUR
+         AND a.attack_type <> 'Normal'
     GROUP BY t.hour
     ORDER BY t.hour
 """, nativeQuery = true)

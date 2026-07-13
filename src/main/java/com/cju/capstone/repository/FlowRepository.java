@@ -58,8 +58,9 @@ public interface FlowRepository extends JpaRepository<Flow, Long> {
                FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
         FROM flows f
         JOIN ai_results a
-        ON f.flow_id=a.flow_id
-        WHERE DATE(f.start_time)=CURDATE()
+          ON f.flow_id = a.flow_id
+        WHERE DATE(f.start_time) = CURDATE()
+          AND a.attack_type <> 'Normal'
         GROUP BY DATE(f.start_time),
                  f.src_ip,
                  a.attack_type,

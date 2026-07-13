@@ -47,8 +47,8 @@ public class DashboardService {
 
         List<Object[]> result;
 
-        if ("week".equals(period)) {
-            result = aiResultRepository.countAttackTypesWeek();
+        if ("today".equals(period)) {
+            result = aiResultRepository.countAttackTypesToday();
         } else {
             result = aiResultRepository.countAttackTypesAll();
         }
