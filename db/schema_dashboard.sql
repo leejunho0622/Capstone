@@ -36,3 +36,6 @@ CREATE INDEX idx_events_last_seen ON attack_events (last_seen);
 
 -- 플로우별 최신 AI 결과 조회
 CREATE INDEX idx_ai_flow_analyzed ON ai_results (flow_id, analyzed_at);
+
+-- 3) (11.03 추가) AI 판정 품질 화면: 기간별 ai_results 집계
+CREATE INDEX idx_ai_analyzed_at ON ai_results (analyzed_at);

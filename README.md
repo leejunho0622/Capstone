@@ -66,9 +66,21 @@ npm run dev          # 터미널 2
 | GET | `/api/flows?q=&srcIp=&destIp=&port=&protocol=&verdict=&attackType=&hours=` | 트래픽 검색 (최신순) |
 | GET | `/api/flows/{flowId}` | 플로우 상세 (위험도 산출 근거 JSON 포함) |
 | GET | `/api/flows/{flowId}/ai-results` | 플로우 분석 이력 |
+| GET | `/api/chains?hours=24&gap=30&minEvents=2` | 공격 연관 분석: 같은 출발지의 연속 공격을 킬체인 단계(정찰→침투 시도→장악→서비스 공격)로 묶음 |
+| GET | `/api/ai/quality?days=7` | AI 판정 품질: 유형별 신뢰도·위험도, 관제요원 확정 정탐/오탐, 분포 |
+| GET | `/api/ai/false-positives.csv?days=30` | 재학습용 오탐 데이터 (feature_vector 포함, 보정 라벨 Normal) |
+| GET | `/api/ai/ids-comparison?days=7` | IDS 룰(flows.severity) vs AI 판정 교차표·유형별 비교, AI만 탐지한 공격 / 룰만 탐지한 플로우 각 10건 |
+| GET | `/api/ai/latency?days=7` | 탐지 지연: 공격 시작→첫 AI 판정(MTTD), 연결 종료→AI 분석 — 평균·p50/p90/p95·구간 분포 (-60초~1시간 밖은 제외) |
 
 - 처리 상태: `NEW`(신규) · `ACK`(확인 중) · `RESOLVED`(조치 완료) · `FALSE_POSITIVE`(오탐)
 - 오탐으로 처리하면 소속 플로우의 `ai_results.is_false_positive` 가 true 로 바뀌어 재학습 데이터로 쓸 수 있습니다.
+
+## 공격 체인 위험도
+
+`체인 위험도 = min(100, 최대 공격 위험도 + 8 × (거친 단계 수 − 1) + (앞 단계 → 뒤 단계 진행 시 5))`
+
+AI 파이프라인(attack_grouper.py)은 같은 유형만 묶기 때문에, 유형이 바뀌며 이어지는 공격(예: PortScan → BruteForce → C2Beacon)은
+백엔드의 공격 연관 분석에서 처음 하나의 흐름으로 보입니다.
 
 ## 위험도 등급 (프론트 `src/lib/severity.ts`)
 

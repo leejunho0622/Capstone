@@ -50,6 +50,10 @@ public class AiResult {
     @Column(name = "risk_breakdown", columnDefinition = "JSON")
     private String riskBreakdown;
 
+    /** 모델 입력 14개 특징값 (재학습·디버깅용) */
+    @Column(name = "feature_vector", columnDefinition = "JSON")
+    private String featureVector;
+
     /** 관리자가 오탐으로 표시한 결과 (재학습 데이터로 활용) */
     @Column(name = "is_false_positive")
     private Boolean falsePositive;

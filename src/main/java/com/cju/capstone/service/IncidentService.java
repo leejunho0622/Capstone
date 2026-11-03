@@ -1,5 +1,6 @@
 package com.cju.capstone.service;
 
+import com.cju.capstone.config.SchemaCheck;
 import com.cju.capstone.domain.AttackEvent;
 import com.cju.capstone.domain.IncidentTriage;
 import com.cju.capstone.dto.FlowDto;
@@ -39,6 +40,7 @@ public class IncidentService {
     private final IncidentTriageRepository triageRepository;
     private final AiResultRepository aiResultRepository;
     private final FlowService flowService;
+    private final SchemaCheck schemaCheck;
 
     /** 최근 N시간 안에 활동(last_seen)한 공격, 최근 활동순 */
     public Page<IncidentDto> list(int hours, String attackType, String q, int page, int size) {
@@ -54,7 +56,7 @@ public class IncidentService {
 
         // 처리 상태는 IN 으로 한 번에 (N+1 방지)
         List<Long> ids = events.getContent().stream().map(AttackEvent::getId).toList();
-        Map<Long, IncidentTriage> triage = ids.isEmpty()
+        Map<Long, IncidentTriage> triage = ids.isEmpty() || !schemaCheck.triageAvailable()
                 ? Map.of()
                 : triageRepository.findAllByAttackIdIn(ids).stream()
                 .collect(Collectors.toMap(IncidentTriage::getAttackId, Function.identity()));
@@ -65,7 +67,8 @@ public class IncidentService {
     public IncidentDto get(Long id) {
         AttackEvent e = attackEventRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Incident not found: " + id));
-        return IncidentDto.of(e, triageRepository.findById(id).orElse(null));
+        IncidentTriage triage = schemaCheck.triageAvailable() ? triageRepository.findById(id).orElse(null) : null;
+        return IncidentDto.of(e, triage);
     }
 
     public Page<FlowDto> flows(Long id, int page, int size) {
@@ -84,6 +87,9 @@ public class IncidentService {
     public TriageDto saveTriage(Long id, TriageRequest req) {
         if (!attackEventRepository.existsById(id)) {
             throw new NotFoundException("Incident not found: " + id);
+        }
+        if (!schemaCheck.triageAvailable()) {
+            throw new TriageUnavailableException();
         }
         IncidentTriage.Status status = parseStatus(req.status());
         IncidentTriage triage = triageRepository.findById(id).orElseGet(() -> new IncidentTriage(id));

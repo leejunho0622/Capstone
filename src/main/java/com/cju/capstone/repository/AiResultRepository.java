@@ -1,11 +1,13 @@
 package com.cju.capstone.repository;
 
 import com.cju.capstone.domain.AiResult;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -31,4 +33,47 @@ public interface AiResultRepository extends JpaRepository<AiResult, Long> {
             WHERE a.flowId IN (SELECT f.flowId FROM Flow f WHERE f.attackId = :attackId)
             """)
     int markFalsePositiveByAttackId(@Param("attackId") Long attackId, @Param("value") boolean value);
+
+    // ---------------- AI 판정 품질 (/api/ai/quality) ----------------
+
+    /** [유형, 분석 건수, 평균 신뢰도, 평균 위험도, 오탐 표시 건수] */
+    @Query("""
+            SELECT a.attackType, COUNT(a), AVG(a.confidence), AVG(a.riskScore),
+                   SUM(CASE WHEN a.falsePositive = true THEN 1 ELSE 0 END)
+            FROM AiResult a
+            WHERE a.analyzedAt >= :since
+            GROUP BY a.attackType
+            """)
+    List<Object[]> qualityByType(@Param("since") LocalDateTime since);
+
+    /** 공격 판정의 신뢰도 분포 (0.1 단위 10구간) [구간, 건수] */
+    @Query(value = """
+            SELECT LEAST(FLOOR(confidence * 10), 9) AS bucket, COUNT(*)
+            FROM ai_results
+            WHERE analyzed_at >= :since AND attack_type <> 'Normal' AND confidence IS NOT NULL
+            GROUP BY bucket
+            """, nativeQuery = true)
+    List<Object[]> confidenceHistogram(@Param("since") LocalDateTime since);
+
+    /** 공격 판정의 위험도 분포 (10점 단위 10구간) [구간, 건수] */
+    @Query(value = """
+            SELECT LEAST(FLOOR(risk_score / 10), 9) AS bucket, COUNT(*)
+            FROM ai_results
+            WHERE analyzed_at >= :since AND attack_type <> 'Normal' AND risk_score IS NOT NULL
+            GROUP BY bucket
+            """, nativeQuery = true)
+    List<Object[]> riskHistogram(@Param("since") LocalDateTime since);
+
+    /** 사용 중인 모델 [모델명, 버전, 건수] */
+    @Query("""
+            SELECT a.modelName, a.modelVersion, COUNT(a)
+            FROM AiResult a
+            WHERE a.analyzedAt >= :since
+            GROUP BY a.modelName, a.modelVersion
+            """)
+    List<Object[]> modelUsage(@Param("since") LocalDateTime since);
+
+    /** 재학습용 오탐 데이터 (feature_vector 포함) */
+    List<AiResult> findByFalsePositiveTrueAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtDesc(
+            LocalDateTime since, Pageable pageable);
 }

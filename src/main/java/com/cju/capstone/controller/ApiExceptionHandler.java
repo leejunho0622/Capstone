@@ -1,6 +1,7 @@
 package com.cju.capstone.controller;
 
 import com.cju.capstone.service.NotFoundException;
+import com.cju.capstone.service.TriageUnavailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -17,6 +18,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Map<String, Object>> notFound(NotFoundException e) {
         return body(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(TriageUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> triageUnavailable(TriageUnavailableException e) {
+        return body(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
     }
 
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentTypeMismatchException.class})

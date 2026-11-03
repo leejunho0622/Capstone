@@ -8,11 +8,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface FlowRepository extends JpaRepository<Flow, Long> {
 
     Optional<Flow> findByFlowId(Long flowId);
+
+    List<Flow> findAllByFlowIdIn(Collection<Long> flowIds);
 
     /** 한 공격(attack_events)에 묶인 플로우 - v_attack_flows 뷰와 같은 결과 */
     Page<Flow> findByAttackId(Long attackId, Pageable pageable);

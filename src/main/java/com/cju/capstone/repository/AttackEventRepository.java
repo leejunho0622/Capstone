@@ -30,6 +30,9 @@ public interface AttackEventRepository extends JpaRepository<AttackEvent, Long> 
 
     long countByFirstSeenGreaterThanEqual(LocalDateTime since);
 
+    /** 공격 연관 분석용: 기간 안에 활동한 공격 전체 (시작 시각순) */
+    List<AttackEvent> findByLastSeenGreaterThanEqualOrderByFirstSeenAsc(LocalDateTime since);
+
     long countByState(String state);
 
     /** 실시간 공격 여부: 진행 중(open)이면서 최근에도 플로우가 붙고 있는 공격이 있는가 */
