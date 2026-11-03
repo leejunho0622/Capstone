@@ -1,10 +1,12 @@
 package com.cju.capstone.dto;
 
+import com.cju.capstone.domain.AiResult;
 import com.cju.capstone.domain.Flow;
 import com.cju.capstone.domain.FlowFlags;
 
 import java.time.LocalDateTime;
 
+/** 트래픽 목록 항목 = 플로우 + TCP 플래그 + 최신 AI 판정 요약 */
 public record FlowDto(
         Long flowId,
         String srcIp,
@@ -14,56 +16,33 @@ public record FlowDto(
         String protocol,
         LocalDateTime startTime,
         LocalDateTime endTime,
-
-        // 🔥 flags 추가
+        Long attackId,
         int synCount,
         int ackCount,
         int finCount,
         int rstCount,
         int pshCount,
-        int urgCount
+        int urgCount,
+        AiSummaryDto ai
 ) {
-    public static FlowDto from(Flow f, FlowFlags flags) {
+    public static FlowDto of(Flow f, FlowFlags flags, AiResult ai) {
         return new FlowDto(
                 f.getFlowId(),
                 f.getSrcIp(),
                 f.getDestIp(),
-
-                f.getSrcPort() != null
-                        ? f.getSrcPort()
-                        : 0,
-
-                f.getDestPort() != null
-                        ? f.getDestPort()
-                        : 0,
-
+                f.getSrcPort(),
+                f.getDestPort(),
                 f.getProtocol(),
                 f.getStartTime(),
                 f.getEndTime(),
-
-                flags != null
-                        ? flags.getSynCount()
-                        : 0,
-
-                flags != null
-                        ? flags.getAckCount()
-                        : 0,
-
-                flags != null
-                        ? flags.getFinCount()
-                        : 0,
-
-                flags != null
-                        ? flags.getRstCount()
-                        : 0,
-
-                flags != null
-                        ? flags.getPshCount()
-                        : 0,
-
-                flags != null
-                        ? flags.getUrgCount()
-                        : 0
+                f.getAttackId(),
+                flags != null ? flags.getSynCount() : 0,
+                flags != null ? flags.getAckCount() : 0,
+                flags != null ? flags.getFinCount() : 0,
+                flags != null ? flags.getRstCount() : 0,
+                flags != null ? flags.getPshCount() : 0,
+                flags != null ? flags.getUrgCount() : 0,
+                AiSummaryDto.from(ai)
         );
     }
 }

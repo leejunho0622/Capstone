@@ -1,158 +1,111 @@
 package com.cju.capstone.service;
 
 import com.cju.capstone.config.AttackType;
-import com.cju.capstone.domain.AiResult;
-import com.cju.capstone.domain.Flow;
-import com.cju.capstone.domain.FlowFlags;
-import com.cju.capstone.dto.*;
-import com.cju.capstone.repository.AiResultRepository;
-import com.cju.capstone.repository.FlowFlagsRepository;
+import com.cju.capstone.dto.AttackTypeDto;
+import com.cju.capstone.dto.DashboardSummaryDto;
+import com.cju.capstone.dto.RealtimeDto;
+import com.cju.capstone.dto.TimelineDto;
+import com.cju.capstone.repository.AttackEventRepository;
 import com.cju.capstone.repository.FlowRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
+/**
+ * 대시보드 집계
+ * - '공격 건수'는 모두 attack_events(공격 단위) 기준
+ *   (이전: flows×ai_results 를 출발지·유형·분 단위로 GROUP BY 해 공격 수를 '추정' → 이제 파이프라인이 묶은 값을 그대로 사용)
+ */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DashboardService {
 
+    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("MM/dd");
+    /** 진행 중 공격 중 이 시간 안에 활동이 있으면 '실시간 공격 중' (attack_grouper 의 묶음 간격 120초와 맞춤) */
+    private static final long REALTIME_WINDOW_SECONDS = 120;
+    private static final String OPEN = "open";
+
     private final FlowRepository flowRepository;
-    private final FlowFlagsRepository flowFlagsRepository;
-    private final AiResultRepository aiResultRepository;
+    private final AttackEventRepository attackEventRepository;
 
     public DashboardSummaryDto getSummary() {
-        long totalFlows = flowRepository.count();
-        long todayAttacks = flowRepository.countTodayIncidents();
-
-        double avgRisk = aiResultRepository.avgRiskScore();
-
-        boolean realtimeAttack = aiResultRepository.existsHighRiskRecent();
-
+        LocalDateTime today = LocalDate.now().atStartOfDay();
         return new DashboardSummaryDto(
-                totalFlows,
-                todayAttacks,
-                realtimeAttack,
-                avgRisk
+                flowRepository.count(),
+                flowRepository.countByStartTimeGreaterThanEqual(today),
+                attackEventRepository.countByFirstSeenGreaterThanEqual(today),
+                attackEventRepository.countByState(OPEN),
+                attackEventRepository.existsByStateAndLastSeenGreaterThanEqual(
+                        OPEN, LocalDateTime.now().minusSeconds(REALTIME_WINDOW_SECONDS)),
+                round1(attackEventRepository.averageEventRiskSince(today)),
+                round1(attackEventRepository.maxEventRiskSince(today))
         );
     }
 
+    /** 유형별 공격 건수. 범례 색이 고정되도록 7종 모두 enum 순서로 반환 (없는 유형은 0) */
     public List<AttackTypeDto> getAttackTypes(String period) {
-
-        List<Object[]> result;
-
-        if ("today".equals(period)) {
-            result = aiResultRepository.countAttackTypesToday();
-        } else {
-            result = aiResultRepository.countAttackTypesAll();
-        }
+        LocalDateTime since = "today".equalsIgnoreCase(period)
+                ? LocalDate.now().atStartOfDay()
+                : LocalDateTime.of(1970, 1, 1, 0, 0);
 
         Map<String, Long> counts = new HashMap<>();
-
-        for (Object[] row : result) {
-            counts.put(
-                    (String) row[0],
-                    ((Number) row[1]).longValue()
-            );
+        for (Object[] row : attackEventRepository.countByTypeSince(since)) {
+            counts.merge(String.valueOf(row[0]), ((Number) row[1]).longValue(), Long::sum);
         }
 
-        return Arrays.stream(AttackType.values())
-                .map(type -> new AttackTypeDto(
-                        type.name(),
-                        counts.getOrDefault(
-                                type.name(),
-                                0L
-                        )
-                ))
-                .toList();
-    }
-
-    public List<TimelineDto> getTimeline() {
-        Map<String, Long> data = aiResultRepository.getTimeline().stream().collect(Collectors.toMap(
-                row -> ((java.sql.Date) row[0]).toLocalDate().format(DateTimeFormatter.ofPattern("MM/dd")),
-                row -> ((Number) row[1]).longValue()
-        ));
-
-        List<TimelineDto> result = new ArrayList<>();
-
-        for (int i = 6; i >= 0; i--) {
-            LocalDate date = LocalDate.now().minusDays(i);
-            String day = date.format(DateTimeFormatter.ofPattern("MM/dd"));
-
-            result.add(new TimelineDto(
-                    day,
-                    data.getOrDefault(day, 0L)
-            ));
+        List<AttackTypeDto> result = new ArrayList<>();
+        for (AttackType type : AttackType.values()) {
+            result.add(new AttackTypeDto(type.name(), counts.getOrDefault(type.name(), 0L)));
         }
-
+        // enum 에 없는 새 유형이 들어와도 버리지 않고 뒤에 붙임
+        counts.keySet().stream()
+                .filter(k -> Arrays.stream(AttackType.values()).noneMatch(t -> t.name().equals(k)))
+                .filter(k -> !"Normal".equals(k))
+                .sorted()
+                .forEach(k -> result.add(new AttackTypeDto(k, counts.get(k))));
         return result;
     }
 
-    public List<RealtimeDto> getRealtime() {
-        return aiResultRepository.getRealtime()
-                .stream()
-                .map(row -> new RealtimeDto(
-                        ((Number) row[0]).intValue(),
-                        ((Number) row[1]).longValue()
-                ))
-                .toList();
+    /** 최근 7일(오늘 포함) 일별 공격 건수, 빈 날은 0 */
+    public List<TimelineDto> getTimeline() {
+        LocalDate first = LocalDate.now().minusDays(6);
+        long[] buckets = new long[7];
+        for (LocalDateTime t : attackEventRepository.findFirstSeenSince(first.atStartOfDay())) {
+            int idx = (int) ChronoUnit.DAYS.between(first, t.toLocalDate());
+            if (idx >= 0 && idx < 7) {
+                buckets[idx]++;
+            }
+        }
+        List<TimelineDto> result = new ArrayList<>(7);
+        for (int i = 0; i < 7; i++) {
+            result.add(new TimelineDto(first.plusDays(i).format(DAY), buckets[i]));
+        }
+        return result;
     }
 
-    public Page<AttackFlowDto> getAttackFlows(int page, int size) {
-
-        Pageable pageable = PageRequest.of(page, size);
-
-        Page<Flow> flowPage = flowRepository.findAttackFlows(pageable);
-
-        if (flowPage.isEmpty()) {
-            return Page.empty(pageable);
+    /** 최근 24시간 시간대별 공격 건수 (0~23시). 프론트가 현재 시각 기준으로 회전해서 그림 */
+    public List<RealtimeDto> getRealtime() {
+        // 현재 시각의 정각 기준 23시간 전부터 → 같은 '시' 가 어제/오늘 겹치지 않음
+        LocalDateTime since = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS).minusHours(23);
+        long[] buckets = new long[24];
+        for (LocalDateTime t : attackEventRepository.findFirstSeenSince(since)) {
+            buckets[t.getHour()]++;
         }
+        List<RealtimeDto> result = new ArrayList<>(24);
+        for (int h = 0; h < 24; h++) {
+            result.add(new RealtimeDto(h, buckets[h]));
+        }
+        return result;
+    }
 
-        // flowId 목록
-        List<Long> flowIds = flowPage.getContent().stream()
-                .map(Flow::getFlowId)
-                .toList();
-
-        // flags 조회
-        List<FlowFlags> flagsList =
-                flowFlagsRepository.findAllByFlowIdIn(flowIds);
-
-        // ai 조회
-        List<AiResult> aiResults =
-                aiResultRepository.findAllByFlow_FlowIdIn(flowIds);
-
-        // flags map
-        Map<Long, FlowFlags> flagsMap = flagsList.stream()
-                .collect(Collectors.toMap(
-                        FlowFlags::getFlowId,
-                        f -> f
-                ));
-
-        // ai map
-        Map<Long, AiResult> aiMap = aiResults.stream()
-                .collect(Collectors.toMap(
-                        ai -> ai.getFlow().getFlowId(),
-                        a -> a
-                ));
-
-        return flowPage.map(flow -> {
-
-            FlowFlags flags =
-                    flagsMap.get(flow.getFlowId());
-
-            AiResult ai =
-                    aiMap.get(flow.getFlowId());
-
-            return AttackFlowDto.of(
-                    FlowDto.from(flow, flags),
-                    ai != null ? AiResultDto.from(ai) : null
-            );
-        });
+    private static double round1(Double v) {
+        return v == null ? 0.0 : Math.round(v * 10.0) / 10.0;
     }
 }

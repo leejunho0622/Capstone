@@ -1,35 +1,59 @@
 package com.cju.capstone.domain;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+/**
+ * ai_results : 플로우 1건에 대한 AI 분석 결과 (inference.py 가 적재)
+ * JSON 컬럼(response_guide, risk_breakdown)은 문자열로 읽어 DTO 에서 JSON 객체로 변환한다.
+ */
 @Entity
 @Table(name = "ai_results")
 @Getter
-@Setter
 public class AiResult {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "flow_id", nullable = false)
+    private Long flowId;
+
+    @Column(name = "model_name")
     private String modelName;
+
+    @Column(name = "model_version")
+    private String modelVersion;
+
     private String prediction;
+
+    @Column(name = "attack_type")
     private String attackType;
 
+    @Column(name = "attack_subtype")
+    private String attackSubtype;
+
     private Double confidence;
+
+    @Column(name = "risk_score")
     private Double riskScore;
 
     private String action;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "action_detail", columnDefinition = "TEXT")
     private String actionDetail;
 
-    private LocalDateTime analyzedAt;
+    @Column(name = "response_guide", columnDefinition = "JSON")
+    private String responseGuide;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "flow_id", referencedColumnName = "flow_id")
-    private Flow flow;
+    @Column(name = "risk_breakdown", columnDefinition = "JSON")
+    private String riskBreakdown;
+
+    /** 관리자가 오탐으로 표시한 결과 (재학습 데이터로 활용) */
+    @Column(name = "is_false_positive")
+    private Boolean falsePositive;
+
+    @Column(name = "analyzed_at")
+    private LocalDateTime analyzedAt;
 }

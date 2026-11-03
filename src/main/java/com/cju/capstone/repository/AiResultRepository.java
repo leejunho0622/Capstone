@@ -1,159 +1,34 @@
 package com.cju.capstone.repository;
 
 import com.cju.capstone.domain.AiResult;
-import com.cju.capstone.domain.Flow;
-import com.cju.capstone.dto.AlertDto;
-import com.cju.capstone.dto.AttackTypeDto;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface AiResultRepository extends JpaRepository<AiResult, Long> {
 
-    // Flow FK 기반 조회 (JPA 규칙: _Id 붙이면 자동으로 flow.id 탐색)
-    Optional<AiResult> findTopByFlow_FlowId(Long flowId);
+    /** 플로우의 최신 분석 결과 (이전 findTopByFlow_FlowId 는 정렬이 없어 임의의 결과가 나왔음) */
+    Optional<AiResult> findFirstByFlowIdOrderByAnalyzedAtDescIdDesc(Long flowId);
 
-    List<AiResult> findAllByFlow_FlowId(Long flowId);
+    /** 플로우의 분석 이력 (최신순) */
+    List<AiResult> findAllByFlowIdOrderByAnalyzedAtDescIdDesc(Long flowId);
 
+    /** 목록 화면용 일괄 조회 - 서비스에서 플로우별 최신 1건만 고름 */
+    List<AiResult> findAllByFlowIdIn(Collection<Long> flowIds);
+
+    /**
+     * 경보를 오탐으로 처리하면 그 공격에 묶인 플로우의 분석 결과에 오탐 표시
+     * (ai_results.is_false_positive 는 원래 '관리자 오탐 표시 → 재학습' 용도로 만들어진 컬럼)
+     */
+    @Modifying(clearAutomatically = true)
     @Query("""
-        SELECT AVG(a.riskScore)
-        FROM AiResult a
-    """)
-    double avgRiskScore();
-
-    @Query("""
-        SELECT COUNT(a) > 0
-        FROM AiResult a
-        WHERE a.riskScore > 80
-        AND a.analyzedAt > CURRENT_TIMESTAMP - 1 MINUTE
-    """)
-    boolean existsHighRiskRecent();
-
-    @Query("""
-        SELECT new com.cju.capstone.dto.AttackTypeDto(a.attackType, COUNT(a))
-        FROM AiResult a
-        GROUP BY a.attackType
-    """)
-    List<AttackTypeDto> groupByAttackType();
-
-    @Query("""
-        SELECT new com.cju.capstone.dto.AlertDto(
-            a.flow.id,
-            a.riskScore,
-            a.attackType
-        )
-        FROM AiResult a
-        WHERE a.riskScore > 80
-        ORDER BY a.analyzedAt DESC
-    """)
-    List<AlertDto> findHighRiskAlerts();
-
-    @Query(value = """
-    SELECT attack_type, COUNT(*)
-    FROM (
-        SELECT
-            a.attack_type,
-            DATE(f.start_time),
-            f.src_ip,
-            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-        FROM flows f
-        JOIN ai_results a
-            ON f.flow_id = a.flow_id
-        WHERE f.start_time >= CURDATE()
-          AND f.start_time < CURDATE() + INTERVAL 1 DAY
-        GROUP BY
-            a.attack_type,
-            DATE(f.start_time),
-            f.src_ip,
-            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-    ) t
-    GROUP BY attack_type
-""", nativeQuery = true)
-    List<Object[]> countAttackTypesToday();
-
-    @Query(value = """
-    SELECT attack_type, COUNT(*)
-    FROM (
-        SELECT
-            a.attack_type,
-            DATE(f.start_time),
-            f.src_ip,
-            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-        FROM flows f
-        JOIN ai_results a
-            ON f.flow_id = a.flow_id
-        GROUP BY
-            a.attack_type,
-            DATE(f.start_time),
-            f.src_ip,
-            FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-    ) t
-    GROUP BY attack_type
-""", nativeQuery = true)
-    List<Object[]> countAttackTypesAll();
-
-    @Query(value = """
-SELECT day, COUNT(*)
-FROM (
-    SELECT DATE(f.start_time) day,
-           f.src_ip,
-           a.attack_type,
-           FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-    FROM flows f
-    JOIN ai_results a
-      ON f.flow_id = a.flow_id
-    WHERE f.start_time >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-      AND a.attack_type <> 'Normal'
-    GROUP BY DATE(f.start_time),
-             f.src_ip,
-             a.attack_type,
-             FLOOR(UNIX_TIMESTAMP(f.start_time)/60)
-)t
-GROUP BY day
-ORDER BY day
-""", nativeQuery = true)
-    List<Object[]> getTimeline();
-
-    @Query(value = """
-    SELECT
-        t.hour,
-        COUNT(a.id) AS count
-    FROM (
-        SELECT 0 AS hour UNION ALL
-        SELECT 1 UNION ALL
-        SELECT 2 UNION ALL
-        SELECT 3 UNION ALL
-        SELECT 4 UNION ALL
-        SELECT 5 UNION ALL
-        SELECT 6 UNION ALL
-        SELECT 7 UNION ALL
-        SELECT 8 UNION ALL
-        SELECT 9 UNION ALL
-        SELECT 10 UNION ALL
-        SELECT 11 UNION ALL
-        SELECT 12 UNION ALL
-        SELECT 13 UNION ALL
-        SELECT 14 UNION ALL
-        SELECT 15 UNION ALL
-        SELECT 16 UNION ALL
-        SELECT 17 UNION ALL
-        SELECT 18 UNION ALL
-        SELECT 19 UNION ALL
-        SELECT 20 UNION ALL
-        SELECT 21 UNION ALL
-        SELECT 22 UNION ALL
-        SELECT 23
-    ) t
-    LEFT JOIN ai_results a
-         ON HOUR(a.analyzed_at) = t.hour
-         AND a.analyzed_at >= NOW() - INTERVAL 24 HOUR
-         AND a.attack_type <> 'Normal'
-    GROUP BY t.hour
-    ORDER BY t.hour
-""", nativeQuery = true)
-    List<Object[]> getRealtime();
-
-    List<AiResult> findAllByFlow_FlowIdIn(List<Long> flowIds);
+            UPDATE AiResult a SET a.falsePositive = :value
+            WHERE a.flowId IN (SELECT f.flowId FROM Flow f WHERE f.attackId = :attackId)
+            """)
+    int markFalsePositiveByAttackId(@Param("attackId") Long attackId, @Param("value") boolean value);
 }
