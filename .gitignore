@@ -1,0 +1,19 @@
+# ---- 빌드 결과물 ----
+.gradle/
+build/
+out/
+**/node_modules/
+src/main/frontend/dist/
+
+# ---- IDE ----
+.idea/
+*.iml
+
+# ---- 비밀 정보 (DB 비밀번호 등) ----
+src/main/resources/db-local.yml
+*.env
+.env*
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
