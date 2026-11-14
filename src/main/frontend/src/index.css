@@ -1,3 +1,154 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =========================================================
+   디자인 토큰 (어두운 관제 화면용)
+   - 색 값은 "R G B" 형식: tailwind 에서 투명도(bg-surface/60)를 쓰기 위함
+   - 위험도 색(--c-sev-*)은 상태 전용. 차트 시리즈 색으로 재사용하지 않습니다.
+   ========================================================= */
+/* ---------- 밝은 테마 (기본) : 화이트 + 블루 + 그린 ---------- */
+:root {
+  color-scheme: light;
+
+  --c-base: 242 245 249; /* #f2f5f9 화면 바탕 */
+  --c-surface: 255 255 255; /* #ffffff 패널 */
+  --c-raised: 245 248 252; /* #f5f8fc 패널 안쪽/호버 */
+  --c-line: 225 231 239; /* #e1e7ef 구분선 */
+  --c-ink: 15 26 43; /* #0f1a2b 본문 */
+  --c-muted: 84 99 120; /* #546378 보조 텍스트 */
+  --c-faint: 140 153 172; /* #8c99ac 비활성 */
+  --c-accent: 29 108 224; /* #1d6ce0 블루 (주 강조) */
+  --c-brand: 13 158 122; /* #0d9e7a 그린 (보조 강조·정상 상태) */
+
+  --c-sev-critical: 220 38 38; /* #dc2626 */
+  --c-sev-high: 234 88 12; /* #ea580c */
+  --c-sev-medium: 202 138 4; /* #ca8a04 */
+  --c-sev-low: 22 163 74; /* #16a34a */
+  --c-sev-info: 100 116 139; /* #64748b */
+
+  /* 공격 유형 범주색 - dataviz 검증 팔레트 (밝은 표면용) */
+  --c-cat-1: #2a78d6;
+  --c-cat-2: #eb6834;
+  --c-cat-3: #1baf7a;
+  --c-cat-4: #eda100;
+  --c-cat-5: #e87ba4;
+  --c-cat-6: #008300;
+  --c-cat-7: #6250d6;
+  --c-cat-other: #9aa4b4;
+
+  --shadow-panel: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --overlay: 15 26 43;
+}
+
+/* ---------- 어두운 테마 (관제실 벽면 모니터·야간 근무용) ---------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-base: 10 14 20;
+  --c-surface: 17 23 34;
+  --c-raised: 24 32 45;
+  --c-line: 38 48 66;
+  --c-ink: 230 235 242;
+  --c-muted: 147 160 180;
+  --c-faint: 93 106 126;
+  --c-accent: 57 135 229;
+  --c-brand: 32 196 148;
+
+  --c-sev-critical: 239 76 76;
+  --c-sev-high: 236 131 90;
+  --c-sev-medium: 250 178 25;
+  --c-sev-low: 47 179 68;
+  --c-sev-info: 122 139 163;
+
+  /* 같은 7개 색상을 어두운 표면에 맞게 조정 (검증 완료) */
+  --c-cat-1: #3987e5;
+  --c-cat-2: #d95926;
+  --c-cat-3: #199e70;
+  --c-cat-4: #c98500;
+  --c-cat-5: #d55181;
+  --c-cat-6: #008300;
+  --c-cat-7: #9085e9;
+  --c-cat-other: #6b7385;
+
+  --shadow-panel: none;
+  --overlay: 0 0 0;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-feature-settings: "tnum" 1;
+  }
+
+  ::selection {
+    background: rgb(var(--c-accent) / 0.35);
+  }
+
+  /* 얇은 스크롤바 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--c-line)) transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-line bg-surface;
+    box-shadow: var(--shadow-panel);
+  }
+  .panel-header {
+    @apply flex items-center justify-between gap-3 border-b border-line px-4 py-3;
+  }
+  .panel-title {
+    @apply text-[13px] font-semibold tracking-wide text-ink;
+  }
+  .btn {
+    @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-line bg-raised px-3 text-xs font-medium text-ink transition hover:border-faint hover:bg-line/60 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply border-accent/60 bg-accent/90 text-white hover:border-accent hover:bg-accent;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-muted hover:bg-raised hover:text-ink;
+  }
+  .input {
+    @apply h-8 rounded-md border border-line bg-canvas px-2.5 text-xs text-ink outline-none transition placeholder:text-faint focus:border-accent/70 focus:ring-2 focus:ring-accent/20;
+  }
+  .th {
+    @apply sticky top-0 z-[1] whitespace-nowrap border-b border-line bg-surface px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted;
+  }
+  .td {
+    @apply whitespace-nowrap border-b border-line/60 px-3 py-2 text-xs;
+  }
+  .kbd {
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded border border-line bg-raised px-1 font-mono text-[10px] text-muted;
+  }
+}
+
+/* 밝은 테마: 흰 패널 안의 입력칸은 흰 바탕 + 테두리 */
+:root:not([data-theme="dark"]) .input {
+  background-color: rgb(var(--c-surface));
+}
+
+/* 깜빡임 등 강한 효과는 '동작 줄이기' 설정을 존중 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

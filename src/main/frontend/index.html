@@ -1,21 +1,34 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>capstone</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      /* 차트 툴팁 등이 깨지지 않게 보조하는 기본 스타일 */
-      body {
-        margin: 0;
-        padding: 0;
+    <meta name="color-scheme" content="light dark" />
+    <title>관제탑 · 네트워크 보안 관제</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.20/index.min.css"
+    />
+    <script>
+      // 첫 화면이 그려지기 전에 테마를 적용 (깜빡임 방지)
+      try {
+        var s = JSON.parse(localStorage.getItem("gwanjetap:settings") || "{}");
+        var t = s.theme || "light";
+        if (t === "system") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      } catch (e) {
+        document.documentElement.dataset.theme = "light";
       }
-    </style>
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

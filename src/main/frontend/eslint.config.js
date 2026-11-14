@@ -20,4 +20,9 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Context Provider + 훅 + 상수를 함께 내보내는 상태 모듈은 Fast Refresh 규칙 제외
+    files: ['src/store/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

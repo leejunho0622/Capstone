@@ -1,13 +1,15 @@
 {
-  "name": "capstone",
+  "name": "gwanjetap-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --open",
+    "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "mock": "node scripts/mock-api.mjs",
+    "dev:mock": "node scripts/mock-api.mjs & vite"
   },
   "dependencies": {
     "lucide-react": "^1.7.0",
